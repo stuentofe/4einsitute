@@ -3,11 +3,27 @@ export default function handler(req, res) {
     return res.status(405).json({ error: 'Only POST allowed' });
   }
 
-  const passage = req.body.passage || "";
+  // 카카오 기본 구조에서 사용자 발화 꺼내기
+  const passage = req.body.userRequest?.utterance || "";
   const sentences = splitParagraphIntoSentences(passage);
   const questions = generateAllOrderQuestions(sentences);
 
-  return res.status(200).json({ questions });
+  // 배열을 하나의 문자열로 합치기
+  const combinedQuestions = questions.join("\n\n");
+
+  // 카카오톡 응답 형식에 맞게 응답
+  return res.status(200).json({
+    version: "2.0",
+    template: {
+      outputs: [
+        {
+          simpleText: {
+            text: combinedQuestions
+          }
+        }
+      ]
+    }
+  });
 }
 
 // ----------------------- Helper Functions -----------------------
@@ -26,87 +42,4 @@ function getValid4ChunkCombinations(n) {
       if (sum === n) result.push([...current]);
       return;
     }
-    const maxChunkSize = n >= 9 ? 3 : 2;
-    for (let i = 1; i <= maxChunkSize; i++) {
-      if (sum + i <= n) {
-        current.push(i);
-        dfs(current, sum + i);
-        current.pop();
-      }
-    }
-  }
-  dfs([], 0);
-  return result;
-}
-
-function chunkSentences(sentences, sizes) {
-  const result = [];
-  let index = 0;
-  for (const size of sizes) {
-    result.push(sentences.slice(index, index + size).join(" "));
-    index += size;
-  }
-  return result;
-}
-
-function generateSingleOrderQuestion(o, p, q, r) {
-  const perms = [
-    ["a", "c", "b"],
-    ["b", "a", "c"],
-    ["b", "c", "a"],
-    ["c", "a", "b"],
-    ["c", "b", "a"],
-  ];
-  const [la, lb, lc] = perms[Math.floor(Math.random() * perms.length)];
-
-  const labels = {
-    [la]: p,
-    [lb]: q,
-    [lc]: r,
-  };
-
-  const reverse = {
-    [p]: la,
-    [q]: lb,
-    [r]: lc,
-  };
-
-  const lines = [];
-  lines.push("주어진 글 다음에 이어질 글의 흐름으로 가장 적절한 것은?\n");
-  lines.push(o + "\n");
-  lines.push(`(A) ${labels.a}`);
-  lines.push(`(B) ${labels.b}`);
-  lines.push(`(C) ${labels.c}\n`);
-  lines.push("① (A) - (C) - (B)");
-  lines.push("② (B) - (A) - (C)");
-  lines.push("③ (B) - (C) - (A)");
-  lines.push("④ (C) - (A) - (B)");
-  lines.push("⑤ (C) - (B) - (A)");
-
-  const correctLabel = [reverse[p], reverse[q], reverse[r]].join("");
-  const answerKey = {
-    acb: 1,
-    bac: 2,
-    bca: 3,
-    cab: 4,
-    cba: 5,
-  };
-  const answer = answerKey[correctLabel];
-  const circled = ["①", "②", "③", "④", "⑤"];
-  lines.push(`\n정답: ${circled[answer - 1]}`);
-
-  return lines.join("\n");
-}
-
-function generateAllOrderQuestions(sentences) {
-  if (sentences.length < 4) return ["문장 수 부족"];
-  const results = [];
-  const combinations = getValid4ChunkCombinations(sentences.length);
-  for (const sizes of combinations) {
-    const chunks = chunkSentences(sentences, sizes);
-    const [o, p, q, r] = chunks;
-    const question = generateSingleOrderQuestion(o, p, q, r);
-    results.push(question);
-  }
-  return results;
-}
+    const maxChunkSize
