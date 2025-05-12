@@ -1,7 +1,16 @@
-const express = require("express");
-const app = express();
+export default function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Only POST allowed' });
+  }
 
-app.use(express.json());
+  const passage = req.body.passage || "";
+  const sentences = splitParagraphIntoSentences(passage);
+  const questions = generateAllOrderQuestions(sentences);
+
+  return res.status(200).json({ questions });
+}
+
+// ----------------------- Helper Functions -----------------------
 
 function splitParagraphIntoSentences(text) {
   return text
@@ -101,12 +110,3 @@ function generateAllOrderQuestions(sentences) {
   }
   return results;
 }
-
-app.post("/api/unscramble", (req, res) => {
-  const { passage } = req.body;
-  const sentences = splitParagraphIntoSentences(passage || "");
-  const questions = generateAllOrderQuestions(sentences);
-  res.json({ questions });
-});
-
-module.exports = app;
